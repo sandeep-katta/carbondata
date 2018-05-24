@@ -20,8 +20,6 @@ package org.apache.spark.sql.optimizer
 import java.util
 
 import scala.collection.JavaConverters._
-import scala.util.Try
-
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.CastExpressionOptimization
@@ -31,22 +29,24 @@ import org.apache.spark.sql.CarbonEndsWith
 import org.apache.spark.sql.CarbonExpressions.{MatchCast => Cast}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.hive.CarbonSessionCatalog
-
+import org.apache.spark.sql.sources.Filter
 import org.apache.carbondata.core.constants.CarbonCommonConstants
 import org.apache.carbondata.core.datamap.Segment
 import org.apache.carbondata.core.indexstore.PartitionSpec
 import org.apache.carbondata.core.metadata.SegmentFileStore
 import org.apache.carbondata.core.metadata.datatype.{DataTypes => CarbonDataTypes}
 import org.apache.carbondata.core.metadata.schema.table.CarbonTable
-import org.apache.carbondata.core.scan.expression.{ColumnExpression => CarbonColumnExpression, Expression => CarbonExpression, LiteralExpression => CarbonLiteralExpression, MatchExpression}
+import org.apache.carbondata.core.scan.expression.{MatchExpression, ColumnExpression => CarbonColumnExpression, Expression => CarbonExpression, LiteralExpression => CarbonLiteralExpression}
 import org.apache.carbondata.core.scan.expression.conditional._
 import org.apache.carbondata.core.scan.expression.logical.{AndExpression, FalseExpression, OrExpression}
 import org.apache.carbondata.core.scan.filter.intf.ExpressionType
 import org.apache.carbondata.core.util.CarbonProperties
 import org.apache.carbondata.core.util.ThreadLocalSessionInfo
-import org.apache.carbondata.datamap.{TextMatch, TextMatchLimit}
+import org.apache.carbondata.datamap.TextMatch
 import org.apache.carbondata.spark.CarbonAliasDecoderRelation
 import org.apache.carbondata.spark.util.CarbonScalaUtil
+import org.apache.spark.SPARK_VERSION
+import org.apache.spark.util.CarbonReflectionUtils
 
 
 /**
@@ -294,6 +294,27 @@ object CarbonFilters {
     filters.flatMap(translate(_, false)).toArray
   }
 
+  /**
+    *  This API checks whether StringTrim object is compatible with
+    *  carbon,carbon only deals with the space any other symbol should
+    *  be ignored.So condition is SPARK version < 2.3.
+    *  If it is 2.3 then trimStr field should be empty
+    * @param stringTrim
+    * @return
+    */
+  def isStringTrimCompatibleWithCarbon(stringTrim : StringTrim) : Boolean = {
+    val version = SPARK_VERSION
+    var isCompatible = true
+    if (version.startsWith("2.3")) {
+      val trimStr = CarbonReflectionUtils.getField("trimStr", stringTrim)
+        .asInstanceOf[Option[Expression]]
+      if (trimStr.isDefined) {
+        isCompatible = false
+      }
+    }
+    isCompatible
+  }
+
   def transformExpression(expr: Expression): CarbonExpression = {
     expr match {
       case Or(left, right)
@@ -381,7 +402,9 @@ object CarbonFilters {
           new CarbonLiteralExpression(maxValueLimit,
             CarbonScalaUtil.convertSparkToCarbonDataType(dataType)))
         new AndExpression(l, r)
-      case StringTrim(child) => transformExpression(child)
+      case strTrim: StringTrim if (isStringTrimCompatibleWithCarbon(strTrim)) => {
+        transformExpression(strTrim)
+      }
       case _ =>
         new SparkUnknownExpression(expr.transform {
           case AttributeReference(name, dataType, _, _) =>
