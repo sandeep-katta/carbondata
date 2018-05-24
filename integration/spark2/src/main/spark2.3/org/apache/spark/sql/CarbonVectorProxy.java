@@ -49,14 +49,12 @@ public class CarbonVectorProxy implements CarbonSparkVectorReader {
         writableColumnVectors = ColumnVectorFactory
                 .getColumnVector(memMode, new StructType(structFileds), rowNum);
         columnarBatch = new ColumnarBatch(writableColumnVectors);
-        columnarBatch.setNumRows(rowNum);
     }
 
-    public CarbonVectorProxy(MemoryMode memMode, StructType outputSchema, int rowNum) {
+    public CarbonVectorProxy(MemoryMode memMode, int rowNum, StructType outputSchema) {
         writableColumnVectors = ColumnVectorFactory
                 .getColumnVector(memMode, outputSchema, rowNum);
         columnarBatch = new ColumnarBatch(writableColumnVectors);
-        columnarBatch.setNumRows(rowNum);
     }
 
     /**
@@ -125,7 +123,7 @@ public class CarbonVectorProxy implements CarbonSparkVectorReader {
      */
     public void putRowToColumnBatch(int rowId, Object value, int offset) {
         WritableColumnVector columnVector = null;
-        if (columnarBatch.column(offset) instanceof WritableColumnVector) {
+        if (columnarBatch.column(rowId) instanceof WritableColumnVector) {
             columnVector = (WritableColumnVector) columnarBatch.column(offset);
             org.apache.spark.sql.types.DataType t = columnVector.dataType();
             if (null == value) {

@@ -20,6 +20,7 @@ package org.apache.carbondata.streaming;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.HashMap;
@@ -55,13 +56,11 @@ import org.apache.carbondata.core.scan.model.QueryModel;
 import org.apache.carbondata.core.util.CarbonUtil;
 import org.apache.carbondata.core.util.DataTypeUtil;
 import org.apache.carbondata.format.BlockletHeader;
-import org.apache.carbondata.format.FileHeader;
 import org.apache.carbondata.hadoop.CarbonInputSplit;
 import org.apache.carbondata.hadoop.CarbonMultiBlockSplit;
 import org.apache.carbondata.hadoop.InputMetricsStats;
 import org.apache.carbondata.hadoop.api.CarbonTableInputFormat;
 import org.apache.carbondata.processing.util.CarbonDataProcessorUtil;
-import org.apache.carbondata.spark.vectorreader.CarbonSparkVectorReader;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -71,11 +70,13 @@ import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
-
 import org.apache.spark.memory.MemoryMode;
+import org.apache.carbondata.spark.vectorreader.CarbonSparkVectorReader;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.*;
+import org.apache.spark.unsafe.types.CalendarInterval;
+import org.apache.spark.unsafe.types.UTF8String;
 
 /**
  * Stream record reader
@@ -416,22 +417,19 @@ public class CarbonStreamRecordReader extends RecordReader<Void, Object> {
     // if filter is null and output projection is empty, use the row number of blocklet header
     int rowNum = 0;
     try {
-      String vectorReaderClassName = "org.apache.spark.sql.CarbonVectorProxy";
-      Class readVectorClass = Class.forName(vectorReaderClassName);
-      cons = readVectorClass.getConstructor(MemoryMode.class, StructType.class, int.class);
-
       if (skipScanData) {
 
+        String vectorReaderClassName = "org.apache.spark.sql.CarbonVectorProxy";
+        Class readVectorClass = Class.forName(vectorReaderClassName);
+        cons = readVectorClass.getConstructor(Enum.class, int.class, StructType.class);
         int rowNums = header.getBlocklet_info().getNum_rows();
-        vectorProxy = (CarbonSparkVectorReader) cons.newInstance(MemoryMode.OFF_HEAP,
-                outputSchema, rowNums);
+        vectorProxy = (CarbonSparkVectorReader) cons.newInstance(MemoryMode.OFF_HEAP, rowNums, outputSchema);
         vectorProxy.setNumRows(rowNums);
         input.skipBlockletData(true);
         return rowNums > 0;
       }
       input.readBlockletData(header);
-      vectorProxy = (CarbonSparkVectorReader) cons.newInstance(MemoryMode.OFF_HEAP,
-              outputSchema, input.getRowNums());
+      vectorProxy = (CarbonSparkVectorReader) cons.newInstance(MemoryMode.OFF_HEAP, input.getRowNums(), outputSchema);
       if (null == filter) {
         while (input.hasNext()) {
           readRowFromStream();
@@ -445,12 +443,14 @@ public class CarbonStreamRecordReader extends RecordReader<Void, Object> {
               putRowToColumnBatch(rowNum++);
             }
           }
-        } catch (FilterUnsupportedException e) {
-          throw new IOException("Failed to filter row in vector reader", e);
-        }
+      } catch (FilterUnsupportedException e) {
+        throw new IOException("Failed to filter row in vector reader", e);
       }
-      vectorProxy.setNumRows(rowNum);
-    } catch (Exception e) {
+    }
+    vectorProxy.setNumRows(rowNum);
+    }
+    catch (Exception e)
+    {
       e.printStackTrace();
     }
     return rowNum > 0;
