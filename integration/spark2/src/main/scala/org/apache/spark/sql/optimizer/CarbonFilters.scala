@@ -42,11 +42,13 @@ import org.apache.carbondata.core.scan.expression.logical.{AndExpression, FalseE
 import org.apache.carbondata.core.scan.filter.intf.ExpressionType
 import org.apache.carbondata.core.util.CarbonProperties
 import org.apache.carbondata.core.util.ThreadLocalSessionInfo
-import org.apache.carbondata.datamap.TextMatch
+import org.apache.carbondata.datamap.{TextMatch, TextMatchLimit}
 import org.apache.carbondata.spark.CarbonAliasDecoderRelation
 import org.apache.carbondata.spark.util.CarbonScalaUtil
 import org.apache.spark.SPARK_VERSION
 import org.apache.spark.util.CarbonReflectionUtils
+
+import scala.util.Try
 
 
 /**
