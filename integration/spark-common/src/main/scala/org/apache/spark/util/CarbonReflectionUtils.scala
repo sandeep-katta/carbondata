@@ -17,27 +17,24 @@
 
 package org.apache.spark.util
 
-import org.antlr.v4.runtime.tree.TerminalNode
-
 import scala.reflect.runtime._
 import scala.reflect.runtime.universe._
-import org.apache.spark.{SPARK_VERSION, SecurityManager, SparkConf, SparkContext}
+
+import org.apache.spark.{SPARK_VERSION, SparkContext}
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.{InternalRow, TableIdentifier}
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation
 import org.apache.spark.sql.catalyst.catalog.CatalogTable
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
-import org.apache.spark.sql.catalyst.parser.{AstBuilder, SqlBaseParser}
+import org.apache.spark.sql.catalyst.parser.AstBuilder
 import org.apache.spark.sql.catalyst.plans.logical.{InsertIntoTable, LogicalPlan, SubqueryAlias}
-import org.apache.spark.sql.execution.datasources.LogicalRelation
-import org.apache.spark.sql.sources.{BaseRelation, Filter}
-import org.apache.spark.rpc.RpcEnvConfig
-import org.apache.carbondata.core.constants.CarbonCommonConstants
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.parser.SqlBaseParser.{CreateFileFormatContext, CreateHiveTableContext}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.RowDataSourceScanExec
+import org.apache.spark.sql.sources.{BaseRelation, Filter}
 
+import org.apache.carbondata.core.constants.CarbonCommonConstants
 /**
  * Reflection APIs
  */
@@ -68,7 +65,7 @@ object CarbonReflectionUtils {
         className,
         tableIdentifier,
         tableAlias)._1.asInstanceOf[UnresolvedRelation]
-    } else if (SPARK_VERSION.startsWith("2.2")) {
+    } else if (SPARK_VERSION.startsWith("2.2") || SPARK_VERSION.startsWith("2.3")) {
       createObject(
         className,
         tableIdentifier)._1.asInstanceOf[UnresolvedRelation]
@@ -87,7 +84,7 @@ object CarbonReflectionUtils {
         alias.getOrElse(""),
         relation,
         Option(view))._1.asInstanceOf[SubqueryAlias]
-    } else if (SPARK_VERSION.startsWith("2.2")) {
+    } else if (SPARK_VERSION.startsWith("2.2") || SPARK_VERSION.startsWith("2.3")) {
       createObject(
         className,
         alias.getOrElse(""),
@@ -114,7 +111,7 @@ object CarbonReflectionUtils {
         query,
         overwriteOptions,
         ifPartitionNotExists.asInstanceOf[Object])._1.asInstanceOf[InsertIntoTable]
-    } else if (SPARK_VERSION.startsWith("2.2")) {
+    } else if (SPARK_VERSION.startsWith("2.2") || SPARK_VERSION.startsWith("2.3") ) {
       createObject(
         className,
         table,
@@ -128,8 +125,9 @@ object CarbonReflectionUtils {
   }
 
   def getLogicalRelation(relation: BaseRelation,
-      expectedOutputAttributes: Seq[Attribute],
-      catalogTable: Option[CatalogTable]): LogicalRelation = {
+                         expectedOutputAttributes: Seq[Attribute],
+                         catalogTable: Option[CatalogTable],
+                         isStreaming: Boolean): LogicalRelation = {
     val className = "org.apache.spark.sql.execution.datasources.LogicalRelation"
     if (SPARK_VERSION.startsWith("2.1")) {
       createObject(
@@ -143,11 +141,17 @@ object CarbonReflectionUtils {
         relation,
         expectedOutputAttributes,
         catalogTable)._1.asInstanceOf[LogicalRelation]
+    } else if (SPARK_VERSION.startsWith("2.3")) {
+      createObject(
+        className,
+        relation,
+        expectedOutputAttributes,
+        catalogTable,
+        isStreaming.asInstanceOf[Object])._1.asInstanceOf[LogicalRelation]
     } else {
       throw new UnsupportedOperationException("Unsupported Spark version")
     }
   }
-
 
   def getOverWriteOption[T: TypeTag : reflect.ClassTag](name: String, obj: T): Boolean = {
     var overwriteboolean: Boolean = false
@@ -228,7 +232,7 @@ object CarbonReflectionUtils {
       val method = tuple.getMethod("hasPredicateSubquery", classOf[Expression])
       val hasSubquery : Boolean = method.invoke(tuple, filterExp).asInstanceOf[Boolean]
       hasSubquery
-    } else if (SPARK_VERSION.startsWith("2.2")) {
+    } else if (SPARK_VERSION.startsWith("2.2") || SPARK_VERSION.startsWith("2.3")) {
       val tuple = Class.forName("org.apache.spark.sql.catalyst.expressions.SubqueryExpression")
       val method = tuple.getMethod("hasInOrExistsSubquery", classOf[Expression])
       val hasSubquery : Boolean = method.invoke(tuple, filterExp).asInstanceOf[Boolean]
@@ -247,14 +251,12 @@ object CarbonReflectionUtils {
   }
 
 
-
   def getRowDataSourceScanExecObj(relation: LogicalRelation,
                                   output: Seq[Attribute],
                                   pushedFilters: Seq[Filter],
                                   handledFilters: Seq[Filter],
-                                  updateRequestedColumns: Seq[Attribute],
                                   rdd: RDD[InternalRow],
-                                  partition : Partitioning,
+                                  partition: Partitioning,
                                   metadata: Map[String, String]): RowDataSourceScanExec = {
     val className = "org.apache.spark.sql.execution.RowDataSourceScanExec"
     if (SPARK_VERSION.startsWith("2.1") || SPARK_VERSION.startsWith("2.2")) {
@@ -263,8 +265,8 @@ object CarbonReflectionUtils {
         relation.catalogTable.map(_.identifier))._1.asInstanceOf[RowDataSourceScanExec]
 
     } else if (SPARK_VERSION.startsWith("2.3")) {
-      createObject(className,output, updateRequestedColumns.map(output.indexOf),
-        pushedFilters.toSet, handledFilters.toSet,  rdd,
+      createObject(className, output, output.map(output.indexOf),
+        pushedFilters.toSet, handledFilters.toSet, rdd,
         relation.relation,
         relation.catalogTable.map(_.identifier))._1.asInstanceOf[RowDataSourceScanExec]
 

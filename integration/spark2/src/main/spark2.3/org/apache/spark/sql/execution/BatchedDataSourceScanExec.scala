@@ -99,11 +99,11 @@ case class BatchedDataSourceScanExec(
     val idx = ctx.addMutableState("int", "batchIdx", v => s"$v = 0;")
     val (colVars,columnAssigns) = output.indices.map {  i =>
       val name = ctx.addMutableState(columnVectorClz, s"colInstance$i")
-      (name, s"$name = $batch.column($i);")
+        (name, s"$name = ($columnVectorClz) $batch.column($i);")
     }.unzip
 
     val nextBatch = ctx.freshName("nextBatch")
-    ctx.addNewFunction(nextBatch,
+    val nextBatchFuncName = ctx.addNewFunction(nextBatch,
       s"""
          |private void $nextBatch() throws java.io.IOException {
          |  long getBatchStart = System.nanoTime();
@@ -123,7 +123,7 @@ case class BatchedDataSourceScanExec(
     }
     s"""
        |if ($batch == null) {
-       |  $nextBatch();
+       |  $nextBatchFuncName();
        |}
        |while ($batch != null) {
        |  int numRows = $batch.numRows();
@@ -133,7 +133,7 @@ case class BatchedDataSourceScanExec(
        |    if (shouldStop()) return;
        |  }
        |  $batch = null;
-       |  $nextBatch();
+       |  $nextBatchFuncName();
        |}
        |$scanTimeMetric.add($scanTimeTotalNs / (1000 * 1000));
        |$scanTimeTotalNs = 0;
