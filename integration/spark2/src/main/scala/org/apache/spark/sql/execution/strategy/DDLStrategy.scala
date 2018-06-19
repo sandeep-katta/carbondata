@@ -39,12 +39,12 @@ import org.apache.carbondata.common.logging.{LogService, LogServiceFactory}
 import org.apache.carbondata.core.features.TableOperation
 import org.apache.carbondata.core.util.CarbonProperties
 
-  /** Carbon strategies for ddl commands
+  /**
+   * Carbon strategies for ddl commands
    * CreateDataSourceTableAsSelectCommand class has extra argument in
    * 2.3, so need to add wrapper to match the case
    */
 object MatchCreateDataSourceTable {
-
   def unapply(plan: LogicalPlan): Option[(CatalogTable, SaveMode, LogicalPlan)] = plan match {
     case t: CreateDataSourceTableAsSelectCommand => Some(t.table, t.mode, t.query)
     case _ => None

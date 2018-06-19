@@ -26,24 +26,25 @@ import org.apache.spark.sql.catalyst.plans.logical.OneRowRelation
 import org.apache.spark.sql.execution.command.ExplainCommand
 import org.apache.spark.sql.types.{DataType, Metadata}
 
-object CarbonCompilerUtil {
+object CarbonToSparkAdapater {
 
   def addSparkListener(sparkContext: SparkContext) = {
     sparkContext.addSparkListener(new SparkListener {
       override def onApplicationEnd(applicationEnd: SparkListenerApplicationEnd): Unit = {
         SparkSession.setDefaultSession(null)
+        SparkSession.sqlListener.set(null)
       }
     })
   }
 
   def createAttributeReference(name: String, dataType: DataType, nullable: Boolean,
-                               metadata: Metadata, exprId: ExprId, qualifier: Option[String],
+                               metadata: Metadata,exprId: ExprId, qualifier: Option[String],
                                attrRef : NamedExpression): AttributeReference = {
     AttributeReference(
       name,
       dataType,
       nullable,
-      metadata)(exprId, qualifier)
+      metadata)(exprId, qualifier,attrRef.isGenerated)
   }
 
   def createAliasRef(child: Expression,
@@ -51,13 +52,17 @@ object CarbonCompilerUtil {
                      exprId: ExprId = NamedExpression.newExprId,
                      qualifier: Option[String] = None,
                      explicitMetadata: Option[Metadata] = None,
-                     namedExpr : Option[NamedExpression] = None ) : Alias = {
-
-      Alias(child, name)(exprId, qualifier, explicitMetadata)
+                     namedExpr: Option[NamedExpression] = None): Alias = {
+    val isGenerated:Boolean = if (namedExpr.isDefined) {
+      namedExpr.get.isGenerated
+    } else {
+      false
+    }
+    Alias(child, name)(exprId, qualifier, explicitMetadata,isGenerated)
   }
 
   def getExplainCommandObj() : ExplainCommand = {
-    ExplainCommand(OneRowRelation())
+    ExplainCommand(OneRowRelation)
   }
 
 }

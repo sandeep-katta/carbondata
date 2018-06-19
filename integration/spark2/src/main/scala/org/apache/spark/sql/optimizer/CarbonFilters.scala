@@ -31,8 +31,7 @@ import org.apache.spark.sql.CarbonEndsWith
 import org.apache.spark.sql.CarbonExpressions.{MatchCast => Cast}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.hive.CarbonSessionCatalog
-import org.apache.spark.SPARK_VERSION
-import org.apache.spark.util.CarbonReflectionUtils
+import org.apache.spark.util.{CarbonReflectionUtils, SparkUtil}
 
 import org.apache.carbondata.core.constants.CarbonCommonConstants
 import org.apache.carbondata.core.datamap.Segment
@@ -307,9 +306,8 @@ object CarbonFilters {
    * @return
    */
   def isStringTrimCompatibleWithCarbon(stringTrim: StringTrim): Boolean = {
-    val version = SPARK_VERSION
     var isCompatible = true
-    if (version.startsWith("2.3")) {
+    if (SparkUtil.isSparkVersionXandAbove("2.3")) {
       val trimStr = CarbonReflectionUtils.getField("trimStr", stringTrim)
         .asInstanceOf[Option[Expression]]
       if (trimStr.isDefined) {

@@ -115,7 +115,8 @@ class CarbonHiveSessionCatalog(
       s"ALTER TABLE ${ oldTableIdentifier.database.get }.${ newTableIdentifier.table} " +
       s"SET SERDEPROPERTIES" +
       s"('tableName'='${ newTableIdentifier.table }', " +
-      s"'dbName'='${ oldTableIdentifier.database.get }', 'tablePath'='${ newTablePath }')")
+      s"'dbName'='${ oldTableIdentifier.database.get }', " +
+      s"'tablePath'='${ newTablePath }')")
   }
 
   override def alterTable(tableIdentifier: TableIdentifier,

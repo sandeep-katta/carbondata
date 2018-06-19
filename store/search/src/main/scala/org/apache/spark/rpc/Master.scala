@@ -81,7 +81,7 @@ class Master(sparkConf: SparkConf) {
           do {
             try {
               LOG.info(s"starting registry-service on $hostAddress:$port")
-              val config = RpcUtil.getRpcEnvConfig(
+              val config = RpcEnvConfig(
                 sparkConf, "registry-service", hostAddress, "", port,
                 new SecurityManager(sparkConf), clientMode = false)
               rpcEnv = new NettyRpcEnvFactory().create(config)

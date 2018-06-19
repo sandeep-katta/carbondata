@@ -61,12 +61,12 @@ object CarbonReflectionUtils {
       tableIdentifier: TableIdentifier,
       tableAlias: Option[String] = None): UnresolvedRelation = {
     val className = "org.apache.spark.sql.catalyst.analysis.UnresolvedRelation"
-    if (SPARK_VERSION.startsWith("2.1")) {
+    if (SparkUtil.isSparkVersionEqualToX("2.1")) {
       createObject(
         className,
         tableIdentifier,
         tableAlias)._1.asInstanceOf[UnresolvedRelation]
-    } else if (SPARK_VERSION.startsWith("2.2") || SPARK_VERSION.startsWith("2.3")) {
+    } else if (SparkUtil.isSparkVersionXandAbove("2.2")) {
       createObject(
         className,
         tableIdentifier)._1.asInstanceOf[UnresolvedRelation]
@@ -79,13 +79,13 @@ object CarbonReflectionUtils {
       relation: LogicalPlan,
       view: Option[TableIdentifier]): SubqueryAlias = {
     val className = "org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias"
-    if (SPARK_VERSION.startsWith("2.1")) {
+    if (SparkUtil.isSparkVersionEqualToX("2.1")) {
       createObject(
         className,
         alias.getOrElse(""),
         relation,
         Option(view))._1.asInstanceOf[SubqueryAlias]
-    } else if (SPARK_VERSION.startsWith("2.2") || SPARK_VERSION.startsWith("2.3")) {
+    } else if (SparkUtil.isSparkVersionXandAbove("2.2")) {
       createObject(
         className,
         alias.getOrElse(""),
@@ -101,7 +101,7 @@ object CarbonReflectionUtils {
       overwrite: Boolean,
       ifPartitionNotExists: Boolean): InsertIntoTable = {
     val className = "org.apache.spark.sql.catalyst.plans.logical.InsertIntoTable"
-    if (SPARK_VERSION.startsWith("2.1")) {
+    if (SparkUtil.isSparkVersionEqualToX("2.1")) {
       val overwriteOptions = createObject(
         "org.apache.spark.sql.catalyst.plans.logical.OverwriteOptions",
         overwrite.asInstanceOf[Object], Map.empty.asInstanceOf[Object])._1.asInstanceOf[Object]
@@ -112,7 +112,7 @@ object CarbonReflectionUtils {
         query,
         overwriteOptions,
         ifPartitionNotExists.asInstanceOf[Object])._1.asInstanceOf[InsertIntoTable]
-    } else if (SPARK_VERSION.startsWith("2.2") || SPARK_VERSION.startsWith("2.3") ) {
+    } else if (SparkUtil.isSparkVersionXandAbove("2.2") ) {
       createObject(
         className,
         table,
@@ -126,23 +126,23 @@ object CarbonReflectionUtils {
   }
 
   def getLogicalRelation(relation: BaseRelation,
-                         expectedOutputAttributes: Seq[Attribute],
-                         catalogTable: Option[CatalogTable],
-                         isStreaming: Boolean): LogicalRelation = {
+      expectedOutputAttributes: Seq[Attribute],
+      catalogTable: Option[CatalogTable],
+      isStreaming: Boolean): LogicalRelation = {
     val className = "org.apache.spark.sql.execution.datasources.LogicalRelation"
-    if (SPARK_VERSION.startsWith("2.1")) {
+    if (SparkUtil.isSparkVersionEqualToX("2.1")) {
       createObject(
         className,
         relation,
         Some(expectedOutputAttributes),
         catalogTable)._1.asInstanceOf[LogicalRelation]
-    } else if (SPARK_VERSION.startsWith("2.2")) {
+    } else if (SparkUtil.isSparkVersionEqualToX("2.2")) {
       createObject(
         className,
         relation,
         expectedOutputAttributes,
         catalogTable)._1.asInstanceOf[LogicalRelation]
-    } else if (SPARK_VERSION.startsWith("2.3")) {
+    } else if (SparkUtil.isSparkVersionEqualToX("2.3")) {
       createObject(
         className,
         relation,
@@ -202,12 +202,12 @@ object CarbonReflectionUtils {
   def getSessionState(sparkContext: SparkContext,
       carbonSession: Object,
       useHiveMetaStore: Boolean): Any = {
-    if (SPARK_VERSION.startsWith("2.1")) {
+    if (SparkUtil.isSparkVersionEqualToX("2.1")) {
       val className = sparkContext.conf.get(
         CarbonCommonConstants.CARBON_SESSIONSTATE_CLASSNAME,
         "org.apache.spark.sql.hive.CarbonSessionState")
       createObject(className, carbonSession)._1
-    } else if (SPARK_VERSION.startsWith("2.2") || SPARK_VERSION.startsWith("2.3")) {
+    } else if (SparkUtil.isSparkVersionXandAbove("2.2")) {
       if (useHiveMetaStore) {
         val className = sparkContext.conf.get(
           CarbonCommonConstants.CARBON_SESSIONSTATE_CLASSNAME,
@@ -229,12 +229,12 @@ object CarbonReflectionUtils {
   }
 
   def hasPredicateSubquery(filterExp: Expression) : Boolean = {
-    if (SPARK_VERSION.startsWith("2.1")) {
+    if (SparkUtil.isSparkVersionEqualToX("2.1")) {
       val tuple = Class.forName("org.apache.spark.sql.catalyst.expressions.PredicateSubquery")
       val method = tuple.getMethod("hasPredicateSubquery", classOf[Expression])
       val hasSubquery : Boolean = method.invoke(tuple, filterExp).asInstanceOf[Boolean]
       hasSubquery
-    } else if (SPARK_VERSION.startsWith("2.2") || SPARK_VERSION.startsWith("2.3")) {
+    } else if (SparkUtil.isSparkVersionXandAbove("2.2")) {
       val tuple = Class.forName("org.apache.spark.sql.catalyst.expressions.SubqueryExpression")
       val method = tuple.getMethod("hasInOrExistsSubquery", classOf[Expression])
       val hasSubquery : Boolean = method.invoke(tuple, filterExp).asInstanceOf[Boolean]
@@ -252,30 +252,26 @@ object CarbonReflectionUtils {
     isFormatted
   }
 
-
   def getRowDataSourceScanExecObj(relation: LogicalRelation,
-                                  output: Seq[Attribute],
-                                  pushedFilters: Seq[Filter],
-                                  handledFilters: Seq[Filter],
-                                  rdd: RDD[InternalRow],
-                                  partition: Partitioning,
-                                  metadata: Map[String, String]): RowDataSourceScanExec = {
+      output: Seq[Attribute],
+      pushedFilters: Seq[Filter],
+      handledFilters: Seq[Filter],
+      rdd: RDD[InternalRow],
+      partition: Partitioning,
+      metadata: Map[String, String]): RowDataSourceScanExec = {
     val className = "org.apache.spark.sql.execution.RowDataSourceScanExec"
-    if (SPARK_VERSION.startsWith("2.1") || SPARK_VERSION.startsWith("2.2")) {
+    if (SparkUtil.isSparkVersionEqualToX("2.1") || SparkUtil.isSparkVersionEqualToX("2.2")) {
       createObject(className, output, rdd, relation.relation,
         partition, metadata,
         relation.catalogTable.map(_.identifier))._1.asInstanceOf[RowDataSourceScanExec]
-
-    } else if (SPARK_VERSION.startsWith("2.3")) {
+    } else if (SparkUtil.isSparkVersionXandAbove("2.3")) {
       createObject(className, output, output.map(output.indexOf),
         pushedFilters.toSet, handledFilters.toSet, rdd,
         relation.relation,
         relation.catalogTable.map(_.identifier))._1.asInstanceOf[RowDataSourceScanExec]
-
     } else {
       throw new UnsupportedOperationException("Spark version not supported")
     }
-
   }
 
   def createObject(className: String, conArgs: Object*): (Any, Class[_]) = {

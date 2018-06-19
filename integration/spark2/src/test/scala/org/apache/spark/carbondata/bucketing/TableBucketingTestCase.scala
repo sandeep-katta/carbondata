@@ -17,10 +17,8 @@
 
 package org.apache.spark.carbondata.bucketing
 
-import org.apache.spark.SPARK_VERSION
 import org.apache.spark.sql.common.util.Spark2QueryTest
 import org.apache.spark.sql.execution.exchange.Exchange
-//import org.apache.spark.sql.execution.exchange.{ShuffleExchangeExec => ShuffleExchange}
 import org.scalatest.BeforeAndAfterAll
 
 import org.apache.carbondata.common.exceptions.sql.MalformedCarbonCommandException

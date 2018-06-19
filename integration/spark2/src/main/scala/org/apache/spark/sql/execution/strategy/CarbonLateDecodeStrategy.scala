@@ -164,7 +164,7 @@ private[sql] class CarbonLateDecodeStrategy extends SparkStrategy {
       val updatedPartitionFilters = partitionKeyFilters.map { exp =>
         exp.transform {
           case attr: AttributeReference =>
-            CarbonCompilerUtil.createAttributeReference(
+            CarbonToSparkAdapater.createAttributeReference(
               attr.name.toLowerCase,
               attr.dataType,
               attr.nullable,
@@ -362,19 +362,19 @@ private[sql] class CarbonLateDecodeStrategy extends SparkStrategy {
   }
 
   private def getDataSourceScan(relation: LogicalRelation,
-                                output: Seq[Attribute],
-                                partitions: Seq[PartitionSpec],
-                                scanBuilder: (Seq[Attribute], Seq[Expression], Seq[Filter],
-                                  ArrayBuffer[AttributeReference], Seq[PartitionSpec])
-                                  => RDD[InternalRow],
-                                candidatePredicates: Seq[Expression],
-                                pushedFilters: Seq[Filter], handledFilters: Seq[Filter],
-                                metadata: Map[String, String],
-                                needDecoder: ArrayBuffer[AttributeReference],
-                                updateRequestedColumns: Seq[Attribute]): DataSourceScanExec = {
+      output: Seq[Attribute],
+      partitions: Seq[PartitionSpec],
+      scanBuilder: (Seq[Attribute], Seq[Expression], Seq[Filter],
+        ArrayBuffer[AttributeReference], Seq[PartitionSpec])
+        => RDD[InternalRow],
+      candidatePredicates: Seq[Expression],
+      pushedFilters: Seq[Filter], handledFilters: Seq[Filter],
+      metadata: Map[String, String],
+      needDecoder: ArrayBuffer[AttributeReference],
+      updateRequestedColumns: Seq[Attribute]): DataSourceScanExec = {
     val table = relation.relation.asInstanceOf[CarbonDatasourceHadoopRelation]
     if (supportBatchedDataSource(relation.relation.sqlContext, updateRequestedColumns) &&
-      needDecoder.isEmpty) {
+        needDecoder.isEmpty) {
       BatchedDataSourceScanExec(
         output,
         scanBuilder(updateRequestedColumns,
